@@ -25,7 +25,7 @@ hoomd.context.initialize()
 ##### Define rigid bodies in the system
 
 ##### Define vesicle #####
-def vesicle(radius,z_center,rho,beads_per_lipid,r_tail,r_head,n_tmd,tmd_theta):
+def vesicle(radius,z_center,rho,beads_per_lipid,r_tail,r_head,n_tmd,tmd_theta,istop):
     hmem = 2 * ((beads_per_lipid - 1) * 2 * r_tail + 2 * r_head) - 2*r_head
     dpt=np.sqrt(1/rho) # distance between lipids along phi and theta direction
     z_c = z_center
@@ -44,8 +44,8 @@ def vesicle(radius,z_center,rho,beads_per_lipid,r_tail,r_head,n_tmd,tmd_theta):
     theta_head1=((theta_head1+np.roll(theta_head1,-1))/2)[0:-1]
     theta_head2=np.linspace(0,np.pi,n_theta2)
     theta_head2=((theta_head2+np.roll(theta_head2,-1))/2)[0:-1]
-    xh1,yh1,zh1,xtmd_in,ytmd_in,ztmd_in=place_shell(r1,theta_head1,dpt,n_tmd,tmd_theta,False)
-    xh2,yh2,zh2,xtmd_out,ytmd_out,ztmd_out=place_shell(r2,theta_head2,dpt,n_tmd,tmd_theta,True)
+    xh1,yh1,zh1,xtmd_in,ytmd_in,ztmd_in=place_shell2(r1,theta_head1,dpt,n_tmd,tmd_theta,False,istop)
+    xh2,yh2,zh2,xtmd_out,ytmd_out,ztmd_out=place_shell2(r2,theta_head2,dpt,n_tmd,tmd_theta,True,istop)
     xh=np.concatenate((xh1,xh2))
     yh=np.concatenate((yh1,yh2))
     zh=np.concatenate((zh1,zh2))
@@ -146,6 +146,50 @@ def place_shell(r,theta,dpt,n_tmd,tmd_theta,ec_lef):
     zh=np.array(zh)
     xtmd=np.array(xtmd)
     ytmd=np.array(ytmd)
+    ztmd=np.array(ztmd)
+    return(xh,yh,zh,xtmd,ytmd,ztmd)
+
+def place_shell2(r,theta,dpt,n_tmd,tmd_theta,ec_lef,istop):
+    theta_head1=theta
+    r1=r
+    xh=[]
+    yh=[]
+    zh=[]
+    xtmd=[]
+    ytmd=[]
+    ztmd=[]
+    
+    for (i,t) in enumerate(theta_head1):
+        n_phi=int(2*np.pi*r1*np.sin(t)/dpt)+1
+        phi=np.linspace(0,2*np.pi,n_phi)
+        phi=((phi+np.roll(phi,-1))/2)[0:-1]
+        for (j,p) in enumerate(phi):
+            x=r1*math.sin(t)*math.cos(p)
+            y=r1*math.sin(t)*math.sin(p)
+            z=r1*math.cos(t)
+            xh.append(x)
+            yh.append(y)
+            zh.append(z)
+    
+    xh=np.array(xh)
+    yh=np.array(yh)
+    zh=np.array(zh)
+
+    dx = 4
+    xtmd = [0+0.7,dx+0.7,-dx+0.7,1.7*dx-1,1.7*dx-1,-1.7*dx+1,-1.7*dx+1]
+    ytmd = [2-rod_len/2-2,2-rod_len/2-2,2-rod_len/2-2,dx/2-0.7,-dx/2-0.7,dx/2+0.7,-dx/2+0.7]
+    xtmd=np.array(xtmd)
+    ytmd=np.array(ytmd)
+    
+    d=4
+    for i in range(n_tmd):
+        r_tmd = np.sqrt((xtmd[i]**2)+(ytmd[i]**2))
+        tmd_theta = np.pi-np.arcsin(r_tmd/(r_ves+hmem))
+        if istop == 0:
+            tmd_theta = np.pi-tmd_theta
+        z = (r1+d)*math.cos(tmd_theta)
+        ztmd.append(z)
+
     ztmd=np.array(ztmd)
     return(xh,yh,zh,xtmd,ytmd,ztmd)
 
@@ -284,6 +328,16 @@ def place_rod_center(linker_tmd_pair,rod_bd_dia,n_bds_per_rod,rod_len):
             rod_z.append(z)
             orientation=[np.cos(rot_ang/2),rot_axis[0]*np.sin(rot_ang/2),rot_axis[1]*np.sin(rot_ang/2),rot_axis[2]*np.sin(rot_ang/2)]
         rod_orien.append(orientation)
+    return(np.array(rod_x),np.array(rod_y),np.array(rod_z),np.array(rod_orien))
+
+def place_rod_center2(linker_tmd_pair,rod_bd_dia,n_bds_per_rod,rod_len):
+    dx = 4
+    rod_x = [0,dx,-dx,1.7*dx+rod_len/2,1.7*dx+rod_len/2,-(1.7*dx+rod_len/2),-(1.7*dx+rod_len/2)]
+    rod_y = [2,2,2,dx/2,-dx/2,dx/2,-dx/2]
+    #rod_y = [rod_len/2,rod_len/2,rod_len/2,dx/2,-dx/2,dx/2,-dx/2]
+    rod_z = [0,0,0,0,0,0,0]
+    w = np.sqrt(2)/2
+    rod_orien = [[w,0,0,w],[w,0,0,w],[w,0,0,w],[1,0,0,0],[1,0,0,0],[0,0,0,1],[0,0,0,1]]
     return(np.array(rod_x),np.array(rod_y),np.array(rod_z),np.array(rod_orien))
 
 def linker_pot(r,rmin,rmax,k,r1):
@@ -425,7 +479,7 @@ tension = 0.05 #pN/nm
 
 ### run number
 
-run_i = int(sys.argv[1])+0
+run_i = int(sys.argv[1])
 run = run_i
 
 ### number of unzippered residues and beads
@@ -463,17 +517,17 @@ print(tmd_types)
 ### Place the rod beads along x-axis so that x-axis would be the body axis and centered at COM
 ### sys.argv[2] is 0 for SNARE runs
 if int(sys.argv[2])==0:
-    n_bds_per_bundle = [1,1,1,1,1,1,1,1]
+    n_bds_per_bundle = [14+3-N_bd_unzip,16,20,19+3-N_bd_unzip,14+3-N_bd_unzip,16,20,19+3-N_bd_unzip] # add N-terminal beads for VAMP and Syntaxin 
 
-# The first bead of the bundles corresponding to bead 20 represents layer +8 of the SNAREpins
-    rod_type_vamp = ['0J']*(3-N_bd_unzip)+['1J']
-    rod_type_sn2 = ['n1J']
-    rod_type_sn1 = ['n1J']
-    rod_type_stx = ['0J']*(3-N_bd_unzip)+['2J']
-    rod_type_vamp_2 = ['LL']*(3-N_bd_unzip)+['VA']
-    rod_type_sn2_2 = ['SN2']
-    rod_type_sn1_2 = ['SN1']
-    rod_type_stx_2 = ['LL']*(3-N_bd_unzip)+['STX']
+# The first bead of the bindles corresponding to bead 20 represents layer +8 of the SNAREpins
+    rod_type_vamp = ['0J']*(3-N_bd_unzip)+['1J','n1J','0J','0J','n1J','n2J','0J','0J','0J','1J','n2J','n1J','0J','2J']
+    rod_type_sn2 = ['n1J','1J','n2J','2J','0J','0J','0J','n1J','n1J','n1J','1J','0J','0J','n2J','n2J','0J']
+    rod_type_sn1 = ['n1J','0J','0J','n1J','0J','n1J','n2J','n2J','0J','1J','0J','n2J','1J','0J','n2J','n1J','2J','n2J','1J','0J']
+    rod_type_stx = ['0J']*(3-N_bd_unzip)+['2J','n1J','0J','n1J','n1J','0J','n2J','n1J','0J','n1J','n1J','0J','0J','n1J','0J','n1J','2J','0J','0J']
+    rod_type_vamp_2 = ['LL']*(3-N_bd_unzip)+['VA' for i in range(14)]
+    rod_type_sn2_2 = ['SN2' for i in range(16)]
+    rod_type_sn1_2 = ['SN1' for i in range(20)]
+    rod_type_stx_2 = ['LL']*(3-N_bd_unzip)+['STX' for i in range(19)]
     c_term_types =['LJ','LJ']
     c_term_types_2 =['L','L']
     c_term_types_i =['LJI','LJI']
@@ -485,7 +539,7 @@ if int(sys.argv[2])==0:
     rod_bd_dia = rod_bd_dia_nm/0.88
     rod_len = rod_len_nm/0.88
     rod_length = rod_len - rod_bd_dia
-    
+
     for ii in range(8):
         n_bds_per_cyl = n_bds_per_bundle[ii]
         if ii in [0,3,4,7]:
@@ -523,7 +577,7 @@ if int(sys.argv[2])==0:
     rod_x = np.array(rod_x)
     rod_y = np.array(rod_y)
     rod_z = np.array(rod_z)
-    
+    rod_x = rod_x-(np.max(rod_x)-np.min(rod_x))/2
     rod_types=rod_type_vamp+rod_type_sn2+rod_type_sn1+rod_type_stx+rod_type_vamp_2+rod_type_sn2_2+rod_type_sn1_2+rod_type_stx_2+c_term_types+c_term_types_2
     rod_types_i=rod_type_vamp+rod_type_sn2+rod_type_sn1+rod_type_stx+rod_type_vamp_2+rod_type_sn2_2+rod_type_sn1_2+rod_type_stx_2+c_term_types_i+c_term_types_2_i
     n_bds_per_rod = len(rod_types)
@@ -588,7 +642,7 @@ tmd_len_nm = l_tmd_x*0.88
 
 m_rod = 1
 if int(sys.argv[2])==0:
-    l_rod_x = 0.66/0.88#max(rod_x)-min(rod_x)+0.66/0.88#rod_bd_dia #max(rod_x)-min(rod_x)
+    l_rod_x = max(rod_x)-min(rod_x)+0.66/0.88#rod_bd_dia #max(rod_x)-min(rod_x)
 else:
     l_rod_x = max(rod_x)-min(rod_x)+2/0.88
 l_rod_y = 0.5*2/0.88#rod_bd_dia#max(rod_y)-min(rod_y)
@@ -605,18 +659,10 @@ r_head = 0.95 * sigma_bead / 2.0 # Head Radius
 r_tail = 1 * sigma_bead / 2.0 # Tail Radius
 beads_per_lipid = 4 # Number of beads per lipid
 
-r_eci_arr = [8.5,8,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,2.5,2]
-r_eci = r_eci_arr[(int(sys.argv[1])-1)]
-if r_eci >= 7.0:
-    delta_h = 1.0
-elif r_eci >= 5:
-    delta_h = 1.5
-elif r_eci >= 4:
-    delta_h = 1.8
-elif r_eci >= 3.2:
-    delta_h = 1.85
-elif r_eci >= 2:
-    delta_h = 2.1
+#r_eci_arr = [8.5,8,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,2.5,2]
+#r_eci = r_eci_arr[(int(sys.argv[1])-1)]
+r_eci = 8.5
+delta_h = 2.3
 
 hmem = 2 * ((beads_per_lipid - 1) * 2 * r_tail + 2 * r_head) - 2*r_head
 z_c_1=r_ves+hmem+delta_h
@@ -641,8 +687,8 @@ bx=100 # box size in x
 by=100 # box size in y
 bz=140 # box size in z
 # Get lipid beads locations and tmds locations
-pos_x,pos_y,pos_z,tmd_c_x,tmd_c_y,tmd_c_z,tmd_orien=vesicle(r_ves,z_c_1,density,beads_per_lipid,r_tail,r_head,n_tmd,tmd_theta) # top vesicel
-pos_x_2,pos_y_2,pos_z_2,tmd_c_x_2,tmd_c_y_2,tmd_c_z_2,tmd_orien_2=vesicle(r_ves,z_c_2,density,beads_per_lipid,r_tail,r_head,n_tmd,np.pi-tmd_theta) # bottom vesicel
+pos_x,pos_y,pos_z,tmd_c_x,tmd_c_y,tmd_c_z,tmd_orien=vesicle(r_ves,z_c_1,density,beads_per_lipid,r_tail,r_head,n_tmd,tmd_theta,istop=1) # top vesicel
+pos_x_2,pos_y_2,pos_z_2,tmd_c_x_2,tmd_c_y_2,tmd_c_z_2,tmd_orien_2=vesicle(r_ves,z_c_2,density,beads_per_lipid,r_tail,r_head,n_tmd,np.pi-tmd_theta,istop=0) # bottom vesicel
 pos_x = np.concatenate((pos_x,pos_x_2))
 pos_y = np.concatenate((pos_y,pos_y_2))
 pos_z = np.concatenate((pos_z,pos_z_2))
@@ -718,7 +764,7 @@ for i in range(n_tmd):
 print('linker_tmd pos:')
 print(linker_tmds_pos)
 print(l_rod_x)
-rod_c_x,rod_c_y,rod_c_z,rod_orien=place_rod_center(linker_tmds_pos,rod_bd_dia,n_bds_per_cyl,l_rod_x)
+rod_c_x,rod_c_y,rod_c_z,rod_orien=place_rod_center2(linker_tmds_pos,rod_bd_dia,n_bds_per_cyl,l_rod_x)
 index = 0
 for p in system.particles:
     if p.type == 'A' or p.type == 'A2':
@@ -871,7 +917,7 @@ r1_linker = r1_linker_nm/0.88
 #k_linker = (f_star_pN/r1_linker_nm)*((0.88**2)/0.6/4) # k1_linker in eplison/sigma^2 unit
 ### output initial condition and check
 #f_name = 'nrod_%.0f_rod_r_%.2f_eliptmd_%.2f_f_star_%.1f_dves_%.1f_tension_%.2f_run_%.0f_lp_%.2f_Nbdunzip_%.0f_old_linker_%.0f_jin_fusogen_%.0f_with_electrostatic_%.0f_try_2' % (n_rod,rod_bd_dia/2,const,f_star_pN,2*(r_ves+hmem),tension,run,lp,N_bd_unzip,int(sys.argv[3]),int(sys.argv[2]),int(sys.argv[4]))
-f_name = 'ves_ves_cutsnare_rtmd_ini_%.2f_deltah_%.2f_Nunzip_%.2f_lp_%.2f_nrod_%.0f_rod_r_%.2f_dves_%.1f_tension_%.2f_run_%.0f' % (tmd_pos_r_avg,delta_h,N_unzip,lp,n_rod,rod_bd_dia/2,2*(r_ves+hmem),tension,run)
+f_name = 'ves_ves_ran_ic_Nunzip_%.2f_lp_%.2f_nrod_%.0f_rod_r_%.2f_dves_%.1f_tension_%.2f_run_%.0f' % (N_unzip,lp,n_rod,rod_bd_dia/2,2*(r_ves+hmem),tension,run)
 print(f_name)
 hoomd.dump.gsd(f_name+'_ini.gsd',period=None,group=hoomd.group.all(),overwrite=True)
 #exit()
@@ -1190,7 +1236,6 @@ if __name__ == '__main__':
     linker_dir_up_all = []
     linker_ct_up_all = []
 
-    ld_f_up_temp = []
     def log_ld_force_up(timestep):
         global linker_force_up_all, linker_dir_up_all, linker_ct_up_all, ld_f_up_temp
         forces_step = []
@@ -1212,19 +1257,12 @@ if __name__ == '__main__':
             forces_y = F*dy/r
             forces_z = F*dz/r
             forces_step.append([forces_x,forces_y,forces_z])
-            if timestep%window == 0:
-                direction_step.append((dx,dy,dz))
-                ct_step.append(ct_pos)
+            direction_step.append((dx,dy,dz))
+            ct_step.append(ct_pos)
 
-        ld_f_up_temp.append(forces_step)
-
-        if timestep%window == 0:
-            ld_f_up_avg = np.mean(ld_f_up_temp, axis=0)
-            linker_force_up_all.append(ld_f_up_avg)
-            ld_f_up_temp = []
-
-            linker_dir_up_all.append(direction_step)
-            linker_ct_up_all.append(ct_step)
+        linker_force_up_all.append(forces_step)
+        linker_dir_up_all.append(direction_step)
+        linker_ct_up_all.append(ct_step)
 
     ld_dn_force_npy_name =f_name+'_force_dn'+seed+'.npy'
     ld_dn_dir_npy_name =f_name+'_dir_dn'+seed+'.npy'
@@ -1233,7 +1271,6 @@ if __name__ == '__main__':
     linker_dir_dn_all = []
     linker_ct_dn_all = []
 
-    ld_f_dn_temp = []
     def log_ld_force_dn(timestep):
         global linker_force_dn_all, linker_dir_dn_all, linker_ct_dn_all, ld_f_dn_temp
         forces_step = []
@@ -1255,19 +1292,12 @@ if __name__ == '__main__':
             forces_y = F*dy/r
             forces_z = F*dz/r
             forces_step.append([forces_x,forces_y,forces_z])
-            if timestep%window == 0:
-                direction_step.append((dx,dy,dz))
-                ct_step.append(ct_pos)
+            direction_step.append((dx,dy,dz))
+            ct_step.append(ct_pos)
 
-        ld_f_dn_temp.append(forces_step)
-
-        if timestep%window == 0:
-            ld_f_dn_avg = np.mean(ld_f_dn_temp, axis=0)
-            linker_force_dn_all.append(ld_f_dn_avg)
-            ld_f_dn_temp = []
-
-            linker_dir_dn_all.append(direction_step)
-            linker_ct_dn_all.append(ct_step)
+        linker_force_dn_all.append(forces_step)
+        linker_dir_dn_all.append(direction_step)
+        linker_ct_dn_all.append(ct_step)
     
     def save_files(timestep):
         global snare_force_arr_all, snare_pos_arr_all, linker_force_up_all, linker_dir_up_all, linker_ct_up_all, linker_force_dn_all, linker_dir_dn_all, linker_ct_dn_all
@@ -1280,13 +1310,13 @@ if __name__ == '__main__':
         np.save(ld_dn_dir_npy_name,linker_dir_dn_all)
         np.save(ld_dn_ct_npy_name,linker_ct_dn_all)
     
-    
+
     ###
     ### Perform Equilibration
     ###
     hoomd.md.integrate.mode_standard(dt=dt_eq)
     bd1 = hoomd.md.integrate.langevin(group=gsd_group,kT=T,seed=seed_sim)
-    Gamma_snare = Gamma * 4
+    Gamma_snare = Gamma * 69
     bd1.set_gamma('H',Gamma)
     bd1.set_gamma('T',Gamma)
     bd1.set_gamma('G',GammaG)
@@ -1307,10 +1337,10 @@ if __name__ == '__main__':
     ### Run simulation
     ###
     #movie_equ.disable()
-    force_period = 10
-    ld_force_up_logger = hoomd.analyze.callback(callback=log_ld_force_up,period=force_period)
-    ld_force_dn_logger = hoomd.analyze.callback(callback=log_ld_force_dn,period=force_period)
-    snare_force_logger = hoomd.analyze.callback(callback=log_snare_force, period=force_period)
+    force_period = 200
+    #ld_force_up_logger = hoomd.analyze.callback(callback=log_ld_force_up,period=force_period)
+    #ld_force_dn_logger = hoomd.analyze.callback(callback=log_ld_force_dn,period=force_period)
+    #snare_force_logger = hoomd.analyze.callback(callback=log_snare_force, period=force_period)
     hoomd.md.integrate.mode_standard(dt=dt)
     bd1.set_gamma('H',Gamma)
     bd1.set_gamma('T',Gamma)
@@ -1319,12 +1349,11 @@ if __name__ == '__main__':
     bd1.set_gamma('D2',Gamma)
     bd1.set_gamma('A',Gamma_snare)
     bd1.set_gamma('A2',Gamma_snare)
-    N_run = 30000000 # number of timesteps, 1 timestep = 0.068 ns
-    gsd_period = 20000
+    N_run = 15000000 # number of timesteps, 1 timestep = 0.068 ns
+    gsd_period = 20000#analyze_period
     gsd_name = f_name+seed+'.gsd'
     hoomd.dump.gsd(gsd_name,period=gsd_period,group=hoomd.group.all(),overwrite=True)
-    force_log_period = 1000000
-    save_files_logger = hoomd.analyze.callback(callback=save_files, period=force_log_period)
+    #force_log_period = 1000000
+    #save_files_logger = hoomd.analyze.callback(callback=save_files, period=force_log_period)
     gsd_check_name = f_name+seed+'_chk'+'.gsd'
     hoomd.run(N_run)
-

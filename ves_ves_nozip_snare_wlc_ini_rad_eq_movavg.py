@@ -24,7 +24,7 @@ hoomd.context.initialize()
 
 ##### Define rigid bodies in the system
 
-##### Define velsicle #####
+##### Define vesicle #####
 def vesicle(radius,z_center,rho,beads_per_lipid,r_tail,r_head,n_tmd,tmd_theta):
     hmem = 2 * ((beads_per_lipid - 1) * 2 * r_tail + 2 * r_head) - 2*r_head
     dpt=np.sqrt(1/rho) # distance between lipids along phi and theta direction
@@ -111,10 +111,9 @@ def place_shell(r,theta,dpt,n_tmd,tmd_theta,ec_lef):
     ytmd=[]
     ztmd=[]
     tmd_phi=[]
-    #d=3 #comment when run simulation!!!!!
-    d=3#11 # uncomment when run simulation!!!!!
+    d=3
     z_tmd = (r1-d)*math.cos(tmd_theta)
-    r_tmd = (r1-d)*np.sin(tmd_theta) # uncomment when run simulation!!!!!
+    r_tmd = (r1-d)*np.sin(tmd_theta)
     dt_lip = theta_head1[1]-theta_head1[0]
     for i in range(n_tmd):
         tmd_phi.append(i*(2*np.pi/n_tmd))
@@ -151,6 +150,7 @@ def place_shell(r,theta,dpt,n_tmd,tmd_theta,ec_lef):
     return(xh,yh,zh,xtmd,ytmd,ztmd)
 
 ##### Define a planer bilayer in system
+# NOT USED
 def planar_mem(box_dim,z_mid,rho,beads_per_lipid,r_tail,r_head):
     hmem = 2 * ((beads_per_lipid - 1) * 2 * r_tail + 2 * r_head) - 2*r_head
     dxy=np.sqrt(1/rho) # distance along between lipids in x and y direction at given density
@@ -195,6 +195,7 @@ def planar_mem(box_dim,z_mid,rho,beads_per_lipid,r_tail,r_head):
     pos_z = pos_z[0:indx]
     print('DEBUG B2: Number of beads check if matches: %d needed times %d beads per lipid = %d beads' % (N_lipid_spec,beads_per_lipid,indx))
     return(pos_x,pos_y,pos_z,bx,by,bz)
+
 def rotate_lipid(xh,yh,zh,nrm,r_head,r_tail,beads_per_lipid):
 
     '''
@@ -238,41 +239,8 @@ def cos_potential(r, rmin, rmax, epsilon, rc, wc):
         F = -epsilon * math.pi / wc * math.cos(math.pi * (r - rc) / (2*wc)) * math.sin(math.pi * (r - rc) / (2*wc))
 
     return (V, F)
-# LJ SHIFT POTENTIAL OBSOLETE
-def lj_shift_potential(r, rmin, rmax, epsilon, b):
 
-    V = 4 * epsilon * ( (b/r)**12 - (b/r)**6 + 1/4.0)
-    F = 24 * epsilon/r * ( 2 * (b/r)**12 - (b/r)**6)
-
-    return (V, F)
-
-######## remove gas phase lipids ########
-def tag_rmv_lipid_bds(x_coor,y_coor,z_coor,head_index,r_limit,num_lipid):
-    gas_percent=5/3649
-    remove_tag=[]
-    x_c=np.average(x_coor)
-    y_c=np.average(y_coor)
-    z_c=np.average(z_coor)
-    for (i,x) in enumerate(x_coor):
-        x=x-x_c
-        y=y_coor[i]-y_c
-        z=z_coor[i]-z_c
-        r=np.sqrt((x**2)+(y**2)+(z**2))
-        if r > r_limit:
-            remove_tag.extend([head_index[i],head_index[i]+1,head_index[i]+2,head_index[i]+3])
-    while len(remove_tag)>int(gas_percent*num_lipid*4):
-        remove_tag=[]
-        r_limit+=0.5
-        for (i,x) in enumerate(x_coor):
-            x=x_coor[i]-x_c
-            y=y_coor[i]-y_c
-            z=z_coor[i]-z_c
-            r=np.sqrt((x**2)+(y**2)+(z**2))
-            if r > r_limit:
-                remove_tag.extend([head_index[i],head_index[i]+1,head_index[i]+2,head_index[i]+3])
-    return (remove_tag,x_c,y_c,z_c)
-
-######## Place pseudo-snare(rod) center beads ########
+######## Place fusogen center beads ########
 def place_rod_center(linker_tmd_pair,rod_bd_dia,n_bds_per_rod,rod_len):
     n_rods = len(linker_tmd_pair)
     rod_orien_i = np.array([1,0,0])
@@ -345,11 +313,7 @@ def linker_pot_real_snare(r,rmin,rmax,N_unzip,lp,linker):
             F = 0
     return (V,F)
 
-def linker_pot_hook(r,k):
-    V = 0.5*k*(r**2)
-    F = -k*r
-    return (V,F)
-
+# NOT USED
 def elect_pot(r,rmin,rmax,r_bead1,r_bead2,charge1,charge2,wcharge):
     lambda_d = 0.8/0.88 # unit in sigma
     if ((r_bead1 == 0) or (r_bead2 == 0)):
@@ -382,6 +346,7 @@ def elect_pot(r,rmin,rmax,r_bead1,r_bead2,charge1,charge2,wcharge):
                         F = r_eff/lambda_d*math.sqrt(abs(Z1*Z2))*0
     return (V,F) 
 
+# NOT USED
 def elect_pot_screened(r,rmin,rmax,r_bead1,r_bead2,charge1,charge2,wcharge):
     lambda_d = 0.8/0.88 # unit in sigma
     if ((r_bead1 == 0) or (r_bead2 == 0)):
@@ -419,7 +384,7 @@ def elect_pot_screened(r,rmin,rmax,r_bead1,r_bead2,charge1,charge2,wcharge):
 ############################################################
 
 ##### scan parameters #####
-### num of hydrophobic beads
+### num of TMD hydrophobic beads
 
 n_hypho_bds_tmd = 2
 
@@ -438,7 +403,6 @@ const_c=2
 ### constant force magnitude
 
 f_star_grp = [18,20,22,25,30,35]
-#f_star_pN = f_star_grp[int(sys.argv[6])]
 
 ### TMD bead size
 
@@ -449,7 +413,7 @@ tmd_bd_r = tmd_bd_r_nm/0.88
 ### Number of SNARE
 
 n_rod_grp = [12,9,7,6,5,4,3]
-n_rod = n_rod_grp[int(sys.argv[5])]#[int(sys.argv[1])//30//1%5]
+n_rod = n_rod_grp[int(sys.argv[5])]
 
 ### Length of SNARE
 
@@ -495,9 +459,9 @@ tmd_z = np.zeros(n_bds_tmd+1)
 tmd_types = ['N' for i in range(n_hyphi_bds_tmd-1)]+['C']+['LT']+['E' for j in range(n_hypho_bds_tmd)]
 print(tmd_types)
 
-### pseudo-snare(rod) beads positions and types, based on the pseudo-snare setup note
-### Place the rod beads along x-axis so that x-axis would be the body axis and centerd at origin
-### Real snare or Jin's snare selection 
+### Fusogen beads positions and types, based on the fusogen setup note
+### Place the rod beads along x-axis so that x-axis would be the body axis and centered at COM
+### sys.argv[2] is 0 for SNARE runs
 if int(sys.argv[2])==0:
     n_bds_per_bundle = [14+3-N_bd_unzip,16,20,19+3-N_bd_unzip,14+3-N_bd_unzip,16,20,19+3-N_bd_unzip] # add N-terminal beads for VAMP and Syntaxin 
 
@@ -517,12 +481,11 @@ if int(sys.argv[2])==0:
     rod_x = []
     rod_y = []
     rod_z = []
-    rod_bd_dia_nm = 0.66#2.5
+    rod_bd_dia_nm = 0.66
     rod_bd_dia = rod_bd_dia_nm/0.88
     rod_len = rod_len_nm/0.88
     rod_length = rod_len - rod_bd_dia
-    #rod_bd_dia_fix = 2/0.88
-    #c_term_dia = (np.sqrt(2)-1)*rod_bd_dia_fix/(np.sqrt(2)+1)
+
     for ii in range(8):
         n_bds_per_cyl = n_bds_per_bundle[ii]
         if ii in [0,3,4,7]:
@@ -537,7 +500,7 @@ if int(sys.argv[2])==0:
         rod_y = rod_y + cyl_y
         rod_z = rod_z + cyl_z
     
-    # vamp is ii = 0, syntaxin is ii = 3?
+    # vamp is ii = 0, syntaxin is ii = 3
     ii = 0
     i = -1
     c_term_x_vamp = 2*rod_bd_dia/2*i
@@ -553,10 +516,7 @@ if int(sys.argv[2])==0:
     c_term_x = [c_term_x_vamp,c_term_x_stx]
     c_term_y = [c_term_y_vamp,c_term_y_stx]
     c_term_z = [c_term_z_vamp,c_term_z_stx]
-    #c_term_x_i=cyl_x[0]-np.sqrt(((0.5*rod_bd_dia+tmd_bd_r)**2)-(tmd_bd_r**2))
-    #c_term_x=[c_term_x_i,c_term_x_i]
-    #c_term_y = [0,0]
-    #c_term_z = [tmd_bd_r,-tmd_bd_r]
+    
     rod_x = rod_x + c_term_x + c_term_x
     rod_y = rod_y + c_term_y + c_term_y
     rod_z = rod_z + c_term_z + c_term_z
@@ -593,8 +553,7 @@ else:
     c_term_types =['L','L']
     rod_types=c_term_types+cyl_types
     n_bds_per_rod = len(rod_types)
-    #print(rod_x)
-    #exit()
+
 # append each rod bead into an array
 rod_pos=[]
 for i in range(len(rod_x)):
@@ -616,18 +575,17 @@ for i in range(len(tmd_x)):
 print('tmd beads position:')
 print(tmd_pos)
 NTMDBeads=len(tmd_types)
-#m_tmd = NTMDBeads*1
-#m_tmd = (NTMDBeads+1)*1
+
 # Set up moment of inertia of TMDs and SNAREpins
-m_tmd = 1 # starting at 6
-l_tmd_x = n_bds_tmd*tmd_bd_r*2#max(tmd_x)-min(tmd_x)
-l_tmd_y = tmd_bd_r#max(tmd_y)-min(tmd_y)
-l_tmd_z = tmd_bd_r#max(tmd_z)-min(tmd_z)
+m_tmd = 1 
+l_tmd_x = n_bds_tmd*tmd_bd_r*2
+l_tmd_y = tmd_bd_r
+l_tmd_z = tmd_bd_r
 i_tmd_x = 0.5*m_tmd*((0.5*(l_tmd_y+l_tmd_z))**2)
 i_tmd_y = (1/12)*m_tmd*(3*((0.5*(l_tmd_y+l_tmd_z))**2)+l_tmd_x**2)
 i_tmd_z = i_tmd_y
 tmd_len_nm = l_tmd_x*0.88
-#m_rod = n_bds_per_cyl*1
+
 m_rod = 1
 if int(sys.argv[2])==0:
     l_rod_x = max(rod_x)-min(rod_x)+0.66/0.88#rod_bd_dia #max(rod_x)-min(rod_x)
@@ -665,12 +623,11 @@ z_c_1=r_ves+hmem+delta_h
 z_c_2=-(r_ves+hmem+delta_h)
 
 n_tmd=n_rod
-tmd_theta=np.pi-np.arcsin(r_eci/(r_ves+hmem))#(6/7)*np.pi
+tmd_theta=np.pi-np.arcsin(r_eci/(r_ves+hmem))
 n_gas_i=int(tension*8*np.pi*(r_ves**2)/3/4)+1
 n_gas = n_gas_i
 r_gas=1*sigma_bead
 mass_lip=1
-#mass_gas=(1/6)*mass_lip
 mass_gas=mass_lip
 
 ###
@@ -739,7 +696,7 @@ for k in range(n_rod):
 system = hoomd.init.read_snapshot(snap)
 print(snap.particles.N)
 
-# Add constituent particles the dummy/ghost beads
+# Add rigid body constituent particles
 
 # Place TMD constitutuent beads
 rigid = hoomd.md.constrain.rigid()
@@ -811,52 +768,7 @@ for i in range(n_rod):
     
     length_1 = np.sqrt(((rod_pos1[0]-tmd_1_pos[0])**2)+((rod_pos1[1]-tmd_1_pos[1])**2)+((rod_pos1[2]-tmd_1_pos[2])**2))
     length_2 = np.sqrt(((rod_pos2[0]-tmd_2_pos[0])**2)+((rod_pos2[1]-tmd_2_pos[1])**2)+((rod_pos2[2]-tmd_2_pos[2])**2))
-    '''
-    orien_linker_1 = tmd_1_pos - rod_pos1
-    orien_linker_2 = tmd_2_pos - rod_pos2
-    ld_pos_x = []
-    ld_pos_y = []
-    ld_pos_z = []
 
-    # Add three linker beads
-    
-    for j in range(1,4):
-        l_pos_1 = rod_pos1 + orien_linker_1/4*j
-        l_pos_2 = rod_pos2 + orien_linker_2/4*j
-        l_tag_1 = int(n_rigid_beads + 2*j-2 + 6*i)
-        l_tag_2 = l_tag_1 + 1
-        
-        l_pos_1_t = list(l_pos_1)
-        
-        l_pos_2_t = list(l_pos_2)
-        if j == 1:
-            system.particles.add('3J')
-            system.particles[l_tag_1].position=l_pos_1_t
-            system.particles.add('1J')
-            system.particles[l_tag_2].position=l_pos_2_t
-        elif j == 2:
-            system.particles.add('1J')
-            system.particles[l_tag_1].position=l_pos_1_t
-            system.particles.add('3J')
-            system.particles[l_tag_2].position=l_pos_2_t
-        else:
-            system.particles.add('1J')
-            system.particles[l_tag_1].position=l_pos_1_t
-            system.particles.add('2J')
-            system.particles[l_tag_2].position=l_pos_2_t
-        
-        if j == 1:
-            system.bonds.add('linker_bond_1',rod_tag_1,l_tag_1)
-            system.bonds.add('linker_bond_1',rod_tag_2,l_tag_2)
-        elif j == 3:
-            system.bonds.add('linker_bond_%d'%j,l_tag_1-2,l_tag_1)
-            system.bonds.add('linker_bond_%d'%j,l_tag_2-2,l_tag_2)
-            system.bonds.add('linker_bond_4',l_tag_1,tmd_tag_1)
-            system.bonds.add('linker_bond_4',l_tag_2,tmd_tag_2)
-        else:
-            system.bonds.add('linker_bond_%d'%j,l_tag_1-2,l_tag_1)
-            system.bonds.add('linker_bond_%d'%j,l_tag_2-2,l_tag_2)
-    '''    
     d = np.sqrt(((tmd_1_pos[0]-tmd_2_pos[0])**2)+((tmd_1_pos[1]-tmd_2_pos[1])**2)+((tmd_1_pos[2]-tmd_2_pos[2])**2))
     linker_length.append([length_1,length_2])
     tmd_d.append(d)
@@ -895,10 +807,6 @@ for (i,tmd_pos) in enumerate(tmd_pos_arr):
             lip_i=j//beads_per_lipid
             lip_i_remov_arr.append(lip_i)
 
-# change N-terminal TMD bead at the bottom vesicle into syntaxin N-terminal TMD bead.
-
-
-
 # remove tmd-overlapping lipid beads positions
 lipid_pos_x=[]
 lipid_pos_y=[]
@@ -920,7 +828,7 @@ for p in system.particles:
         if p_pos[2]<0:            
             system.particles[p_tag].type='N2'
 '''
-### Place lipid beads
+
 ### Place lipid beads
 n_lipid_bds = len(lipid_pos_x)
 print('number of lipid beads: %.1f'%n_lipid_bds)
@@ -1104,6 +1012,7 @@ if __name__ == '__main__':
                 eval(command)
 
     # Set SNARE-SNARE electrostatic potential
+    # NOT USED - argv[4] flag always set to 0 for SNARE runs
     # r,rmin,rmax,r_bead1,r_bead2,charge1,charge2 
     if int(sys.argv[4])!=0:
         table = hoomd.md.pair.table(width=100000,nlist = nl,name='elect_pot')
@@ -1165,11 +1074,11 @@ if __name__ == '__main__':
     harmonic.bond_coeff.set('linker2', k=0,r0=0*r_inf)
 
     # Linker Potentials
+    # sys.argv[3] flag set to 0 for SNARE runs
     # r,rmin,rmax,N_unzip,linker
     global ld_table
     ld_table = hoomd.md.bond.table(width=100000)
     if int(sys.argv[3])==0: 
-        
         ld_table.bond_coeff.set('bond1',func=linker_pot_real_snare,rmin=0,rmax=10,coeff=dict(N_unzip=N_unzip,lp=lp,linker=0))
         ld_table.bond_coeff.set('bond2',func=linker_pot_real_snare,rmin=0,rmax=10,coeff=dict(N_unzip=N_unzip,lp=lp,linker=0))
         ld_table.bond_coeff.set('bond3',func=linker_pot_real_snare,rmin=0,rmax=10,coeff=dict(N_unzip=N_unzip,lp=lp,linker=0))
@@ -1198,49 +1107,9 @@ if __name__ == '__main__':
     rigid_center=hoomd.group.rigid_center()
     gsd_group=hoomd.group.union(name='gsd_group',a=groupHTG,b=rigid_center)
 
-    ### Ideal Gas Pressure Measurement
-    #log_period=eq_steps/1000
-    #hoomd.compute.thermo(group=groupG)
-    #pressure_file_G = hoomd.analyze.log(filename='rves_%.1f_gamma_%.1f_pressure.txt'%(r_vesicle,tension), quantities=['pressure_xx_groupG','pressure_yy_groupG','pressure_zz_groupG','num_particles_groupG'],
-    #                    period=log_period, header_prefix='#', phase = -1)
-    
-    ###
-    ### Auto fusion detactor
-    ###
     global npy_name
     seed = '_%.0f'%seed_sim
     npy_name =f_name+seed
-    analyze_period = 20000
-    global force_z_arr, mov_time_period,force_crit
-    ld_force_arr_all=[]
-    f_mov = []
-    f_int = []
-    mov_time_step_period = 80
-    #['H','T','G','D','F','E','A','R']
-    force_crit = 0
-    '''
-    def log_ld_force(timestep):
-        force_arr_t=[]
-        for f in ld_table.forces:
-            if 0 not in f.force:
-                force = f.force
-                force_arr_t.append(force)
-        force_arr_t=force_arr_t[0:int(2*n_rod)]
-        ld_force_arr_all.append(force_arr_t)
-        force_arr_t=np.array(force_arr_t)
-        f_int.append(np.mean(np.sqrt(force_arr_t[:,0]**2+force_arr_t[:,1]**2+force_arr_t[:,2]**2)))
-        if len(f_int)>=mov_time_step_period:
-            if len(f_int)>mov_time_step_period:
-                del f_int[0]    
-            f_mov.append(np.mean(f_int)*0.6/0.88*4.1)
-            #print(len(f_int))
-            #print(f_mov[-1])
-            #print(f_mov[0])
-            #print(mean_force*0.8)
-            if f_mov[-1]<f_mov[0]*0.68:
-                exit()
-        #np.save(npy_name,ld_force_arr_all)  
-    '''
     
     snare_npy_name = f_name+'_snare_force'+seed+'.npy'
     snare_pos_npy_name = f_name+'_snare_pos'+seed+'.npy'
@@ -1411,15 +1280,6 @@ if __name__ == '__main__':
         np.save(ld_dn_force_npy_name,linker_force_dn_all)
         np.save(ld_dn_dir_npy_name,linker_dir_dn_all)
         np.save(ld_dn_ct_npy_name,linker_ct_dn_all)
-    
-    ###
-    ### Calculate moving average force
-    ###
-
-
-    ###
-    ### Auto fusion detactor
-    ###
 
 
     ###
@@ -1437,24 +1297,17 @@ if __name__ == '__main__':
     bd1.set_gamma('A2',Gamma_snare)
     hoomd.compute.thermo(group=groupROD)
     N_eq=1500000 # ~1 microsec equilibration
-    #gsd_name = 'equi_two_ves_tmds_rods_ld_len_%.1f_dves_%.1f_tension_%.0f.gsd' % (r1_linker_nm,2*(r_ves+hmem),tension)
     seed = '_%.0f'%seed_sim
     #gsd_name_equ = f_name+seed+'_equ'+'.gsd'
     #movie_equ=hoomd.dump.gsd(gsd_name_equ,period=20000,group=hoomd.group.all(),overwrite=True)
-    #npy_name =f_name+'_equ'+seed
-    #ld_force_logger_equ = hoomd.analyze.callback(callback=log_ld_force,period=analyze_period/10,phase=-1)
     hoomd.run(N_eq)
-    #np.save(npy_name,ld_force_arr_all)
-    #ld_force_logger_equ.disable()
+
     
 
     ###
     ### Run simulation
     ###
-    #global npy_name
     #movie_equ.disable()
-    #ld_force_arr_all=[]
-    #npy_name =f_name+seed
     force_period = 10
     ld_force_up_logger = hoomd.analyze.callback(callback=log_ld_force_up,period=force_period)
     ld_force_dn_logger = hoomd.analyze.callback(callback=log_ld_force_dn,period=force_period)
@@ -1468,17 +1321,11 @@ if __name__ == '__main__':
     bd1.set_gamma('A',Gamma_snare)
     bd1.set_gamma('A2',Gamma_snare)
     N_run = 30000000 # number of timesteps, 1 timestep = 0.068 ns
-    #gsd_period=2000#136/0.068
-    gsd_period = 20000#analyze_period
-    #seed = '_%.0f'%seed_sim
+    gsd_period = 20000
     gsd_name = f_name+seed+'.gsd'
-    #production_log=hoomd.analyze.log(filename='ld_len_%.1f_nrod_%.0f_rod_Erot_production.log'%(r0_linker_nm,n_rod),quantities=['rotational_kinetic_energy_groupROD'],
-    #                        period=analyze_period,overwrite=True,header_prefix='########')
     hoomd.dump.gsd(gsd_name,period=gsd_period,group=hoomd.group.all(),overwrite=True)
     force_log_period = 1000000
     save_files_logger = hoomd.analyze.callback(callback=save_files, period=force_log_period)
     gsd_check_name = f_name+seed+'_chk'+'.gsd'
-    #hoomd.dump.gsd(gsd_check_name,period=gsd_period*5,group=hoomd.group.all(),overwrite=True,truncate=True)
     hoomd.run(N_run)
-    #npy_name =f_name+seed 
-    #np.save(npy_name,ld_force_arr_all)
+
